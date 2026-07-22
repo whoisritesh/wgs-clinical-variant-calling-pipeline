@@ -219,22 +219,244 @@ Command Breakdown:
   - VariantFiltration: Applies standard quality cutoffs for Quality-by-Depth (QD < 2.0), Fisher Strand Bias (FS > 60.0), and Mapping Quality (MQ < 40.0).
 
 
---------------------------------------------------------------------------------
-4. FULL EXECUTION WORKFLOW
---------------------------------------------------------------------------------
+NGS PIPELINE
+NOW THAT I HAVE LINKED ALL THE TOOLS INTO OUR SERVER ENVIROMENT WE DONOT NEED TO CHANGE THE PATH DIRECTORY EACH TIME FOR EACH SPECIFIC FOLDER 
+WE CAN CHOOSE OUR DEFINE FOLDER AND START GIVING THE COMMAND THE SYSYTEM WILL SEARCH AND FIND ALL THE TOOOLS BY HIMSELF AND RUN THE GIVEN COMMAND LINE 
+TO SET UP THIS WE HAVE GIVEN THE COMMAND LINE FOE EACH TOOL
 
-To run the entire modular pipeline end-to-end, execute each script sequentially 
-from the repository root:
 
-  # Initialize Environment
-  bash 00_environment_setup/00_setup_env.sh
+FOR EXAMPLE
 
-  # Run Workflow Steps
-  bash 01_sra_download/01_download_sra.sh
-  bash 02_qc_and_trimming/02_qc_and_trim.sh
-  bash 03_alignment_bwa/03_align_bwa.sh
-  bash 04_samtools_processing/04_process_samtools.sh
-  bash 05_variant_calling/05_call_variants.sh
-  bash 06_gatk_variant_calling/06_gatk_pipeline.sh
+# 1. Add sratoolkit
+echo 'export PATH="$HOME/internship_projects/life-science/sratoolkit.3.4.1-ubuntu64/bin:$PATH"' >> ~/.bashrc
 
-================================================================================
+# 2. Add FastQC
+echo 'export PATH="$HOME/internship_projects/life-science/FastQC:$PATH"' >> ~/.bashrc
+
+# 3. Add bwa
+echo 'export PATH="$HOME/internship_projects/life-science/bwa:$PATH"' >> ~/.bashrc
+
+# 4. Add samtools
+echo 'export PATH="$HOME/internship_projects/life-science/samtools:$PATH"' >> ~/.bashrc
+
+# 5. Add bcftools
+echo 'export PATH="$HOME/internship_projects/life-science/bcftools:$PATH"' >> ~/.bashrc
+
+
+FOR TRIMOMATIC 
+
+echo 'alias trimmomatic="java -jar $HOME/internship_projects/life-science/trimmomatic-0.40.jar"' >> ~/.bashrc
+
+STEP-2 REOLAD THE TERMINAL SETTING
+source ~/.bashrc
+
+
+
+DETAILS EXPLANATION
+
+
+
+This command does the exact same job for GATK that our earlier command did for HISAT2 and your other tools. It permanently saves the folder location of GATK into your terminal's memory so you can run gatk or gatk Mutect2 from absolutely anywhere on the server.
+
+If you don't run this command, the server will have no idea what gatk means, and you would be forced to type out the massive full path every single time you want to use it, like this:
+~/internship_projects/life-science/gatk/gatk Mutect2 [arguments]
+
+Here is the exact, piece-by-piece breakdown of what this line is doing under the hood:
+
+1. The Core Action: export PATH="..."
+In Linux, PATH is an environment variable—essentially a master search checklist containing specific folder paths.
+
+Whenever you type any command in your terminal (like ls, cd, gatk, or delly), Linux doesn't scan your entire computer. Instead, it instantly runs down the folder paths listed inside your PATH variable to look for a matching application file.
+
+By using export PATH=, you are telling the system: "Hey, I am updating our master search checklist right now."
+
+2. The Path Value: "$HOME/internship_projects/life-science/gatk:$PATH"
+$HOME ➔ This is a built-in shortcut that automatically fills in your home directory path (which on your server translates to /home/intern).
+
+/internship_projects/life-science/gatk ➔ This points directly to the brand-new folder where your GATK tools and Python wrapper scripts live.
+
+:$PATH ➔ This is the most critical part. The colon (:) acts as a separator. By adding :$PATH at the end, you are saying: "Take my new GATK folder, put it at the very front of the line, and then paste all of my existing path folders right behind it." > Warning: If you forgot to type :$PATH, you would completely overwrite your system's memory, accidentally blocking basic Linux commands like ls, cd, and mkdir from working!
+
+3. The Permanent Storage: >> ~/.bashrc
+The terminal has a very short memory. If you just type the export command directly into your terminal window, it will work perfectly—but only until you close that terminal window or log out. The next time you open Jupyter or reconnect via SSH, the server will completely forget it.
+
+~/.bashrc ➔ This is a hidden text file that lives in your home directory. It acts as an initialization startup script. Every single time you open a new terminal panel, log in, or start a session, the server reads and runs this file automatically to set up your environment.
+
+>> ➔ This is the Append Operator. It opens up that hidden .bashrc file, goes all the way to the very bottom line, and cleanly pastes your export command into the file without disturbing or changing any of your other existing configurations.
+
+
+choose one location
+SO OUR COMMAND LINE WILL BE 
+1)download sra file
+prefetch SRR27892070
+
+2)fastq file conversion
+fasterq-dump SRR27892070
+
+or
+
+fasterq-dump -e 32 SRR27892070
+
+fasterq-dump -e 32 --split-files SRR27892070
+
+3)QUALITY CHECK
+fastqc SRR27892070_1.fastq SRR27892070_2.fastq
+
+4)trimming
+FOR PAIRED END
+
+ java -jar /home/intern/internship_projects/life-science/trimmomatic-0.40.jar PE -phred33 \
+SRR27892070_1.fastq \
+SRR27892070_2.fastq \
+SRR27892070_1_paired.fastq SRR27892070_1_unpaired.fastq \
+SRR27892070_2_paired.fastq SRR27892070_2_unpaired.fastq \
+ILLUMINACLIP:/home/intern/internship_projects/life-science/Trimmomatic/adapters/TruSeq3-PE.fa:2:30:10 \
+LEADING:5 TRAILING:5 SLIDINGWINDOW:4:20 MINLEN:36
+
+FOR SINGLE END SRRXX.fastq file
+
+trimmomatic SE -phred33 \
+SRR27892070.fastq \
+SRR27892070_clean.fastq \
+LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36
+
+
+reference genome bwa
+
+bwa index ~/internship_projects/life-science/RB20/RB20_Genome.fasta
+
+
+for 70-15
+
+bwa index ~/internship_projects/life-science/reference/ncbi_dataset/data/GCF_000002495.2/GCF_000002495.2_MG8_genomic.fna
+
+NEXT 
+
+our sequence alignment
+
+bwa mem ~/internship_projects/life-science/RB20/RB20_Genome.fasta \
+SRR27892070_1_paired.fastq \
+SRR27892070_2_paired.fastq > output.sam
+
+if we want high speed and high thread we can use it by 
+
+bwa mem -t 32 ~/internship_projects/life-science/RB20/RB20_Genome.fasta \
+SRR27892070_1_paired.fastq \
+SRR27892070_2_paired.fastq > output.sam      (RB20_Genome)
+
+
+ bwa mem -t 64 ~/internship_projects/life-science/reference/ncbi_dataset/data/GCF_000002495.2/GCF_000002495.2_MG8_genomic.fna \
+SRR27892070_1_paired.fastq \
+SRR27892070_2_paired.fastq > output.sam     (70-15)
+
+
+SAMTOOL
+
+samtools sort -@ 32 -o sorted_output.bam output.sam
+samtools index sorted_output.bam
+samtools flagstat sorted_output.bam > alignment_stats.txt
+
+
+BCFTOOL
+
+ bcftools mpileup --threads 32 -f ~/internship_projects/life-science/RB20/RB20_Genome.fasta sorted_output.bam | bcftools call --threads 32 -mv -Ob -o variants.bcf  (for diploid)
+
+
+ bcftools mpileup --threads 32 -f ~/internship_projects/life-science/RB20/RB20_Genome.fasta sorted_output.bam | \
+bcftools call --threads 32 --ploidy 1 -mv -Ob -o variants.bcf   (for haploid)
+
+
+ bcftools mpileup --threads 32 -f ~/internship_projects/life-science/reference/ncbi_dataset/data/GCF_000002495.2/GCF_000002495.2_MG8_genomic.fna sorted_output.bam | \
+bcftools call --threads 32 --ploidy 1 -mv -Ob -o variants.bcf
+
+
+BCF TO VCF
+
+bcftools view variants.bcf > final_variants.vcf
+
+
+bcftools stats variants.bcf > variant_stats.txt
+cat variant_stats.txt | grep -A 10 "SNPs"
+
+
+
+
+or we can use GATK THIS IS AFTER WE GOT SORTED OUTPUT BAM FILE
+
+
+1.add read group
+
+gatk AddOrReplaceReadGroups \
+  -I sorted_output.bam \
+  -O sorted_rg.bam \
+  -RGID 1 \
+  -RGLB lib1 \
+  -RGPL illumina \
+  -RGPU unit1 \
+  -RGSM SRR27892070
+
+
+2.RUN MARK DUPLICATE
+gatk MarkDuplicates \
+  -I sorted_rg.bam \
+  -O marked_output.bam \
+  -M marked_metrics.txt
+
+3.INDEX CLEAN BAM FILE
+
+samtools index marked_output.bam
+
+
+4.RUN VARINET CALLING
+
+gatk HaplotypeCaller \
+  -R reference.fna \
+  -I marked_output.bam \
+  -O SRR27892070_raw_variants.vcf
+
+
+Once HaplotypeCaller finishes processing, it will generate your raw, un-filtered file: SRR27892070_raw_variants.vcf.
+
+Raw VCF files contain thousands of false positives caused by sequencing background noise or mapping errors. Before annotating, we must perform Variant Filtration to isolate the high-confidence mutations.
+
+Here are the final steps to clean your data and run the annotation.
+
+Step 1: Separate SNPs and Apply GATK Hard Filters
+We will extract only the single nucleotide polymorphisms (SNPs) and apply the standard GATK recommendations for hard filtering to flag low-quality calls.
+
+Run these two commands in sequence:
+
+
+# 1. Extract SNPs from the raw file
+gatk SelectVariants \
+  -V SRR27892070_raw_variants.vcf \
+  -select-type SNP \
+  -O SRR27892070_raw_snps.vcf
+
+# 2. Filter out low-quality SNPs
+gatk VariantFiltration \
+  -V SRR27892070_raw_snps.vcf \
+  -filter "QD < 2.0 || FS > 60.0 || MQ < 40.0 || SOR > 3.0" \
+  --filter-name "LOW_QUALITY_SNP" \
+  -O SRR27892070_filtered_snps.vcf
+
+
+
+
+Step 2: Keep Only the "PASS" Variants
+The command above doesn't delete bad variants; it just writes "LOW_QUALITY_SNP" in the FILTER column. To keep your final annotation clean, extract only the high-confidence mutations that successfully passed the filters:
+
+
+gatk SelectVariants \
+  -V SRR27892070_filtered_snps.vcf \
+  --exclude-filtered \
+  -O SRR27892070_final_variants.vcf
+
+
+
+
+gene annotation
+
+java -jar ~/internship_projects/life-science/snpEff/snpEff.jar ann \  -c ~/internship_projects/life-science/snpEff/snpEff.config \  -dataDir ~/internship_projects/life-science/snpEff/data \  -nodownload \  MG8 \  SRR27892070_final_variants.vcf > SRR27892070_annotated_fixed.vcf
+
+
